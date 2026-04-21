@@ -1,0 +1,16 @@
+Copyright (c) 2026 Gadi Evron
+
+Choose a licence before publishing. Suggested split:
+
+- Canary files under canaries/ : CC0-1.0 Universal Public Domain Dedication
+  so adopters can embed them in any project under any licence.
+  https://creativecommons.org/publicdomain/zero/1.0/legalcode
+
+- Documentation (README.md, experiment/FINDINGS.md, etc.) : CC BY-SA 4.0
+  so derivative writeups stay open.
+  https://creativecommons.org/licenses/by-sa/4.0/legalcode
+
+- Ablation variants (variants/*.py, variants/*.c) : same as canaries/ since
+  they exist as the experimental control.
+
+Replace this file with the final licence text before first public push.
