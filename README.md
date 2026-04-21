@@ -19,6 +19,7 @@ can be further improved (embedded in real code, function/file/directory
 names less indicative, regularly regenerated as new code, etc.).
 
 Written by: Gadi Evron (@gadievron)
+Named by: Michal Kamensky (@kamenskymic).
 
 ## Use at your own risk
 
