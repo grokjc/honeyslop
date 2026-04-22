@@ -1,0 +1,4 @@
+c/*.c       linguist-vendored=true
+c/*.h       linguist-vendored=true
+python/*.py linguist-vendored=true
+js/*.js     linguist-vendored=true

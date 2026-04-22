@@ -1,22 +1,45 @@
-# Rotating the canary UUID
+# Rotating the canary UUIDs
 
-Every canary in this release embeds `SLOP-CANARY-7f4b9e2d-1c3a-4a5e-9b8f-0e3d2a4f6c8e`. **You must replace this with a fresh UUID.** Uniqueness per-repo is what makes the grep-based triage rule work.
+This repo embeds **one UUID per language**, not a single shared one. **You must replace each with a fresh UUID** before using these files. Uniqueness per-repo (and per-language) is what makes the grep-based triage rule work.
 
-Rotating canary UUID is far from a perfect defense against this code becoming training data, but should work for at least six months. Use it for inspiration to write your own.
+Current UUIDs in this release:
+
+| Language | File(s)                                                | UUID                                   |
+| -------- | ------------------------------------------------------ | -------------------------------------- |
+| Python   | `python/legacy_utils.py`, `python/regex_validator.py`  | `7f19ec01-5c94-43ac-8054-4088246c3bba` |
+| C        | `c/buffer_ops.c`, `c/heartbeat.c`, `c/sat.h`           | `bc7e8319-c3bd-409e-8b29-25511d13b7ce` |
+| JS       | `js/legacy_utils.js`, `js/regex_validator.js`          | `622aa8da-ec1b-4da3-8bba-bda7fbfaf13c` |
+
+Rotating is far from a perfect defense against this code becoming training data, but should work for at least six months. Use it for inspiration to write your own.
 
 ## Quick rotate
 
 ```bash
-# Generate a fresh UUID
-NEW_UUID=$(uuidgen | tr 'A-Z' 'a-z')
-OLD_UUID="7f4b9e2d-1c3a-4a5e-9b8f-0e3d2a4f6c8e"
+# Generate fresh UUIDs (one per language)
+NEW_PY=$(uuidgen | tr 'A-Z' 'a-z')
+NEW_C=$(uuidgen  | tr 'A-Z' 'a-z')
+NEW_JS=$(uuidgen | tr 'A-Z' 'a-z')
 
-# Replace in all canary files (review the diff before committing)
-grep -rl "$OLD_UUID" canaries/ | xargs sed -i.bak "s/$OLD_UUID/$NEW_UUID/g"
-find canaries -name '*.bak' -delete
+OLD_PY="7f19ec01-5c94-43ac-8054-4088246c3bba"
+OLD_C="bc7e8319-c3bd-409e-8b29-25511d13b7ce"
+OLD_JS="622aa8da-ec1b-4da3-8bba-bda7fbfaf13c"
 
-# Verify
-grep -rn "SLOP-CANARY" canaries/
+# Replace in each language tree (review the diff before committing).
+# `xargs -r` (GNU) skips the sed call if grep finds nothing — otherwise
+# sed would hang reading from stdin.
+grep -rl "$OLD_PY" python/ | xargs -r sed -i.bak "s/$OLD_PY/$NEW_PY/g"
+grep -rl "$OLD_C"  c/      | xargs -r sed -i.bak "s/$OLD_C/$NEW_C/g"
+grep -rl "$OLD_JS" js/     | xargs -r sed -i.bak "s/$OLD_JS/$NEW_JS/g"
+find python c js -name '*.bak' -delete
+
+# Don't forget the table at the top of this file
+sed -i.bak "s/$OLD_PY/$NEW_PY/g; s/$OLD_C/$NEW_C/g; s/$OLD_JS/$NEW_JS/g" ROTATE_UUID.md
+rm -f ROTATE_UUID.md.bak
+
+# Verify — each grep should only report files in its own language tree
+grep -rn "$NEW_PY" python/ c/ js/
+grep -rn "$NEW_C"  python/ c/ js/
+grep -rn "$NEW_JS" python/ c/ js/
 ```
 
 ## When to rotate again
@@ -31,8 +54,9 @@ Rotate all canary UUIDs when **any** of these happens:
 
 Just rotating the UUID isn't enough once the file bodies are in training data. Also change:
 
-- **Function-name prefix.** Change `_unused_*` to `_dead_*`, `_tripwire_*`, or a novel prefix. Models that memorised the previous prefix will skip those specifically.
-- **Banner text.** Vary the wording: "honeypot", "tripwire", "decoy file", "NOT PRODUCTION". Keep the structure (explicit closure policy, grep-able ID, policy-for-maintainers section) but don't keep the exact sentences.
+- **Function-name prefix.** Change `_unused_*` to `_dead_*`, `_stale_*`, or any novel neutral prefix. (Avoid `_tripwire_*`, `_canary_*` etc. — those are themselves tells.) Models that memorised the previous prefix will skip those specifically.
+- **Banner text.** Vary the wording of the top-of-file deprecation notice. Keep the structure (explicit closure policy, grep-able ID) but don't keep the exact sentences.
+- **Shibboleth function names.** `zqx_tarnish_v3` / `zqxTarnishV3` / `_validate_pep_440_plus` should all get fresh nonce-y names each rotation — they're listed in the README triage rules, so if you change them, update the README too.
 - **Fake credentials.** Change `AKIAIOSFODNN7EXAMPLE` (AWS's documented example — will be learned as "always fake") for a different format each cycle. Same for the fake JWT secret.
 - **Function bodies.** Shuffle which sink is in which function. If `_unused_eval` becomes `_unused_pickle_loads`, a model that memorised the exact body won't match.
 
@@ -40,4 +64,4 @@ And again, none of that will fully help when this project becomes training data.
 
 ## Don't publicise rotation events
 
-If you choose to use `SECURITY.md`, it should state that rotation happens but not when. Announcing rotation timing gives a slop generator a roadmap for which training cutoffs are safe. Rotate silently. a SECURITY.md file by itself may tip a scanner off to the canaries.
+If you choose to use `SECURITY.md`, it should state that rotation happens but not when. Announcing rotation timing gives a slop generator a roadmap for which training cutoffs are safe. Rotate silently. A `SECURITY.md` file by itself may tip a scanner off to the canaries.

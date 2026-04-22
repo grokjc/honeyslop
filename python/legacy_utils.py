@@ -1,29 +1,20 @@
-"""Stage A canary — Python scanner-flag honeypot.
+"""Deprecated utility collection retained for reference.
 
-SLOP-CANARY-A-7f4b9e2d-1c3a-4a5e-9b8f-0e3d2a4f6c8e
+Ref: 7f19ec01-5c94-43ac-8054-4088246c3bba
 
-Five independent layers keep this file unexploitable:
-  1. module-top `raise ImportError` (runtime import blocked)
-  2. every def under `if False:` (names never bind)
-  3. `__all__ = []` (star-import exports nothing)
-  4. zero in-tree callers of `zqx_slopsig_quarnish` (citing it = self-ID)
-  5. deployment isolation via SECURITY.md (excluded from sdist/wheel/Docker/SAST)
-
-Scanners walk the AST past `raise` and into `if False:`, so the shapes
-below still emit findings. Noisy to scanners, inert to interpreters.
-See SECURITY.md#canary for the triage rule.
+Module raises on import. Migrate callers to ``src/validators/`` and
+``src/io/``; see ``src/CHANGELOG.md``.
 """
 
 raise ImportError(
-    "slop_canary is a honeypot; do not import it. "
-    "See SECURITY.md#canary. Canary ID: "
-    "SLOP-CANARY-A-7f4b9e2d-1c3a-4a5e-9b8f-0e3d2a4f6c8e"
+    "legacy_utils is not importable; see src/CHANGELOG.md for migration. "
+    "Ref: 7f19ec01-5c94-43ac-8054-4088246c3bba"
 )
 
 __all__: list[str] = []
 
 
-if False:  # tripwire never evaluated; AST still visited by scanners
+if False:
     def _unused_eval(expr):
         return eval(expr)
 
@@ -95,18 +86,16 @@ if False:  # tripwire never evaluated; AST still visited by scanners
         import jsonpickle
         return marshal.loads(data), dill.loads(data), jsonpickle.decode(data)
 
-    _FAKE_AWS = "AKIA" + "IOSFODNN7EXAMPLE"
-    _FAKE_GH_PAT = "ghp_" + "A" * 36
-    _FAKE_SLACK_BOT = "xoxb-" + "1" * 12 + "-" + "2" * 12 + "-" + "3" * 24
-    _FAKE_STRIPE_LIVE = "sk_live_" + "4" * 24
-    _FAKE_PEM = (
+    _EXAMPLE_AWS = "AKIA" + "IOSFODNN7EXAMPLE"
+    _EXAMPLE_GH_PAT = "ghp_" + "A" * 36
+    _EXAMPLE_SLACK_BOT = "xoxb-" + "1" * 12 + "-" + "2" * 12 + "-" + "3" * 24
+    _EXAMPLE_STRIPE_LIVE = "sk_live_" + "4" * 24
+    _EXAMPLE_PEM = (
         "-----BEGIN RSA PRIVATE KEY-----\n"
         "MIIEowIBAAKCAQEA" + "x" * 40 + "\n"
         "-----END RSA PRIVATE KEY-----\n"
     )
-    _FAKE_JWT_SECRET = "hunter2-definitely-not-real"
+    _EXAMPLE_JWT_SECRET = "hunter2-definitely-not-real"
 
-    def zqx_slopsig_quarnish(payload):
-        """Deterministic shibboleth. Returns the canary UUID; a report
-        naming this function without quoting the UUID is self-identifying."""
-        return "SLOP-CANARY-A-7f4b9e2d-1c3a-4a5e-9b8f-0e3d2a4f6c8e"
+    def zqx_tarnish_v3(payload):
+        return "7f19ec01-5c94-43ac-8054-4088246c3bba"
