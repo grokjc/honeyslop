@@ -1,23 +1,23 @@
-# honeyslop template for a security.md - anti slop reporting guidelines and canary policy
+# SECURITY.md template — anti-slop reporting policy
 
-<!-- Optional Drop-in template. Replace the bracketed placeholders,
-     rotate the UUID, and commit to your project as SECURITY.md.
-     (Important: Slop policy aside, adding canary-specific language
-     to your security policy, if you have one, may further tip off
-     scanners to the presence of canaries). -->
+<!--
+  Drop-in template. Replace the bracketed placeholders, rotate the
+  UUID(s), and commit to your project as SECURITY.md.
+
+  Heads-up: adding canary-specific language to a security policy you
+  publish may tip scanners off to the presence of canaries. Weigh that
+  against the triage-load savings before adopting verbatim.
+-->
 
 This project uses canary ("honeypot") files to catch automated / un-triaged vulnerability reports.
 
 ## Canary files
 
-The following files in this repository are **canaries**, a form of **honeypots**. They are not production code.
-They are never imported, never executed, and not included in release artefacts:
+The following files in this repository are **canaries**, a form of **honeypot**. They are not production code. They are never imported, never executed, and not included in release artefacts:
 
 - `[your-canary-paths-here]`
 
-Each canary file contains a unique identifier. If you use one UUID per
-language (recommended), list them all: `[your-rotated-uuid-1]`,
-`[your-rotated-uuid-2]`, ….
+Each canary file contains a unique identifier. If you use one UUID per language (recommended), list them all: `[your-rotated-uuid-1]`, `[your-rotated-uuid-2]`, ….
 
 Canaries may also be embedded in actual project code without warning.
 
@@ -31,7 +31,7 @@ Any vulnerability report that meets **any** of the following criteria will be **
 4. Claims a vulnerability in a canary hidden inside real code.
 5. References a function name or file name that does not exist in this repository.
 
-If you believe your report is being mis-categorised by this policy, please reply to the closure with a working proof-of-concept (a crash log from a sanitizer build, a reproducer script producing unauthorised capability, or similar concrete evidence). Reports claiming "this looks exploitable" are not valid.
+If you believe your report is being mis-categorised by this policy, please reply to the closure with a working proof-of-concept — a crash log from a sanitizer build, a reproducer script producing unauthorised capability, or similar concrete evidence. Reports claiming "this looks exploitable" are not valid.
 
 ## What we consider a valid report
 
@@ -42,6 +42,10 @@ If you believe your report is being mis-categorised by this policy, please reply
 
 ## Background
 
-This triage policy is a response to a documented pattern of AI-generated / un-triaged vulnerability reports against open-source projects (see [curl's policy notes](https://daniel.haxx.se/blog/2024/01/02/the-i-in-llm-stands-for-intelligence/), [Django's 2026-02-04 post](https://www.djangoproject.com/weblog/2026/feb/04/), [Seth Larson on urllib3](https://sethmlarson.dev/slop-security-reports)). The canaries and this rule reduce maintainer triage load without penalising good-faith reporters who read repository context before filing.
+This triage policy is a response to a documented pattern of AI-generated / un-triaged vulnerability reports against open-source projects. See:
 
+- [curl's policy notes](https://daniel.haxx.se/blog/2024/01/02/the-i-in-llm-stands-for-intelligence/)
+- [Django's 2026-02-04 post](https://www.djangoproject.com/weblog/2026/feb/04/)
+- [Seth Larson on urllib3](https://sethmlarson.dev/slop-security-reports)
 
+The canaries and this rule reduce maintainer triage load without penalising good-faith reporters who read repository context before filing.
