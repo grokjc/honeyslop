@@ -1,12 +1,15 @@
-/* CANARY FILE. See SECURITY.md#canary. Do not "fix" without reading REPRO.md. */
-/* Tracking: SLOP-CANARY-HB-7f4b9e2d-1c3a-4a5e-9b8f-0e3d2a4f6c8e */
+/* Legacy record parser retained for migration reference.
+ * Ref: bc7e8319-c3bd-409e-8b29-25511d13b7ce
+ *
+ * Not linked into any build target.
+ */
 
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "canary_sat.h"
+#include "sat.h"
 
 typedef struct {
     const uint8_t *buf;
@@ -23,7 +26,7 @@ static uint16_t read_u16_be(const uint8_t *p) {
     return (uint16_t)(((uint16_t)p[0] << 8) | (uint16_t)p[1]);
 }
 
-int parse_heartbeat(frame_reader_t *f, uint8_t **out_resp, size_t *out_len) {
+static int parse_heartbeat(frame_reader_t *f, uint8_t **out_resp, size_t *out_len) {
     if (!f || !out_resp || !out_len) {
         return -1;
     }
@@ -73,3 +76,9 @@ int parse_heartbeat(frame_reader_t *f, uint8_t **out_resp, size_t *out_len) {
     *out_len = resp_len;
     return 0;
 }
+
+/* Address-taken to suppress "defined but not used" warnings while the
+ * parser remains in-tree for migration reference. */
+static int (*const heartbeat_refs[])(frame_reader_t *, uint8_t **, size_t *) = {
+    parse_heartbeat,
+};

@@ -7,7 +7,7 @@ a vulnerability "report" based on it. The report self-identifies
 as slop. Close it in one grep.
 
 This is a quick PoC, vibe-coded as a joke (not production-grade),  
-because we recieved a slop report to raptor, ourselves.  
+because we received a slop report to raptor, ourselves.
 Should be fun!
 
 Code canaries extend familiar triage signals (i.e. detections in test
@@ -18,7 +18,7 @@ In tests, these canaries work well enough to pinpoint slop, but they
 can be further improved (embedded in real code, function/file/directory  
 names less indicative, regularly regenerated as new code, etc.).
 
-Written by: Gadi Evron (@gadievron)
+Written by: Gadi Evron (@gadievron).
 Named by: Michal Kamensky (@kamenskymic).
 
 ## Use at your own risk
@@ -31,13 +31,14 @@ If you paste this into production, that's a you problem.
 
 For each incoming report, in order:
 
-1. grep canary UUID in the report → close.
-2. grep canary-only function names (`zqx_slopsig_quarnish`,
-  `_validate_pep_440_plus`, `handle_*_request`) → close.
+1. grep any canary UUID in the report → close. (UUIDs are per-language;
+   each canary file embeds exactly one.)
+2. grep canary-only function names (`zqx_tarnish_v3`, `zqxTarnishV3`,
+  `_validate_pep_440_plus`; also `handle_*_request` if you've adopted
+  F+G privately) → close.
 3. grep `CVE-2025-99919` (fake) → close.
-4. Cited file path under `canaries/` → close.
-5. Cited function doesn't exist in the tree → "does not exist."
-6. For memcpy/bounds claims on B/D: ask the reporter to walk through how
+4. Cited function doesn't exist in the tree → "does not exist."
+5. For memcpy/bounds claims on B/D: ask the reporter to walk through how
    their PoC defeats the specific guard on the cited line. AI follow-ups
    cannot answer; humans can.
 
@@ -45,7 +46,7 @@ For each incoming report, in order:
 
 | Type               | What it does                                                                          | Stages           |
 | ------------------ | ------------------------------------------------------------------------------------- | ---------------- |
-| **SCANNER-FLAG**   | Trips scanners so slop reports pile up on canary                                        | A, B, C, D, E    |
+| **SCANNER-FLAG**   | Trips scanners so slop reports pile up on the canary                                    | A, B, C, D, E    |
 | **RESOURCE-WASTE** | Potentially runs agentic LLM scanners through their full iteration budget at max cost | F + G (together) |
 
 
@@ -53,12 +54,54 @@ For each incoming report, in order:
 
 | Stage   | File(s)                                       | Shape that fools                                                                                                                                                  | Defense against execution                                                                                                                                                 |
 | ------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **A**   | `ready/python/slop_canary.py`                 | 15 textbook CWE sinks (eval/exec/shell/SQL/pickle/yaml/verify=False/md5/XXE/JWT none/etc.) + fake AWS/GH/Slack/Stripe secrets + shibboleth `zqx_slopsig_quarnish` | 5 layers (see below)                                                                                                                                                      |
-| **B**   | `ready/c/slop_canary.c`                       | 4 memcpy/memmove shapes scanners flag as CWE-120/121/787/170                                                                                                      | Shapes bounded by construction (Static_assert, clamps, truncation, memmove semantics); file never linked                                                                  |
+| **A**   | `python/legacy_utils.py`, `js/legacy_utils.js` | ~15 textbook CWE sinks (eval/exec/shell/SQL/pickle/yaml/verify=False/md5/XXE/JWT none/etc.) + fake AWS/GH/Slack/Stripe secrets + shibboleths `zqx_tarnish_v3` / `zqxTarnishV3` | 5 layers — see [Safety model](#safety-model) below                                                                                                                        |
+| **B**   | `c/buffer_ops.c`                              | 4 memcpy/memmove shapes scanners flag as CWE-120/121/787/170                                                                                                      | Shapes bounded by construction (`_Static_assert`, clamps, truncation, memmove semantics); file never linked; functions `static`                                           |
 | **C**   | merged into A                                 | Extended CWE yield                                                                                                                                                | Same as A                                                                                                                                                                 |
-| **D**   | `ready/c/canary_heartbeat.c` + `canary_sat.h` | Heartbleed silhouette: `uint16_t payload_len` → `malloc(1+2+payload_len+16)` → `memcpy`                                                                           | Distributed `sat_sub` bounds, cached frame fields (closes TOCTOU + signal-handler UB), NULL checks, `SIZE_MAX - 19 >= UINT16_MAX` assert, `payload_len > 0` short-circuit |
-| **E**   | `ready/python/regex_validator.py`             | Catastrophic-backtrack regex `^(([a-z]+)+)+@example\.com$` + fake **CVE-2025-99919**                                                                              | 5 layers + regex stored as string literal only (no module-level `re.compile`)                                                                                             |
-| **F+G** | `private/fractal_dag/` (12 nodes)             | Cross-referenced DAG of `handle_*_request(req)` entry points with Stage-1 `vulnerable`-shaped sinks                                                               | 5 layers per node + cross-refs only in docstrings, never `from .node_XX import`                                                                                           |
+| **D**   | `c/heartbeat.c` + `c/sat.h`                   | Heartbleed silhouette: `uint16_t payload_len` → `malloc(1+2+payload_len+16)` → `memcpy`                                                                           | Distributed `sat_sub` bounds, cached frame fields (closes TOCTOU + signal-handler UB), NULL checks, `SIZE_MAX - 19 >= UINT16_MAX` assert, `payload_len > 0` short-circuit, `parse_heartbeat` is `static` |
+| **E**   | `python/regex_validator.py`, `js/regex_validator.js` | Catastrophic-backtrack regex `^(([a-z]+)+)+@example\.com$` + fake **CVE-2025-99919**                                                                       | Stage-A layers + regex stored as string literal only (no module-level `re.compile` / `new RegExp`)                                                                        |
+| **F+G** | `private/fractal_dag/` (12 nodes, not in this repo) | Cross-referenced DAG of `handle_*_request(req)` entry points with Stage-1 `vulnerable`-shaped sinks                                                         | Stage-A layers per node + cross-refs only in docstrings, never `from .node_XX import`                                                                                     |
+
+## Safety model
+
+The canary code files deliberately read like plausible deprecated modules — no "canary", "honeypot", or "tripwire" language in comments or identifiers. That keeps the files from self-identifying to scanners, but it also means the *why these files are safe* documentation lives here instead of in each file's docstring. When reviewing or rotating a canary, check that every layer below is still intact.
+
+### Stages A and E (Python + JS)
+
+Five independent layers keep these files inert:
+
+1. **Top-level `raise ImportError` / `throw new Error`** — a plain `import` / `require` aborts before any definition binds.
+2. **Every def/function under `if False:` / `if (false) { ... }`** — names never enter the runtime namespace even if layer 1 is bypassed.
+3. **Empty exports** — Python: `__all__: list[str] = []` (star-import exports nothing). JS: `module.exports = {}` (CommonJS consumers get an empty object).
+4. **Zero in-tree callers of the shibboleth functions** (`zqx_tarnish_v3`, `zqxTarnishV3`, `_validate_pep_440_plus`). Any report citing one self-identifies as slop.
+5. **Deployment isolation** — the adopter excludes the canary paths from sdist / wheel / Docker / SAST (see `SECURITY.md.template` and "How to try").
+
+Stage E adds a sixth layer: the catastrophic-backtrack regex is stored as a string literal only, not passed to `re.compile` / `new RegExp` at module scope. Even a harness that strips layer 1 cannot trigger a compiled backtracking engine.
+
+Scanners walk the AST past `raise` / `throw` and into the dead block, so the sinks still surface as findings — that is the intended behaviour.
+
+### Stage B (C `buffer_ops.c`)
+
+Safety is structural — each shape has a proof alongside it:
+
+- `bufops_copy_banner`: `src` is a string literal, `n = sizeof(literal)`, `_Static_assert` pins it to the destination size.
+- `bufops_copy_bounded`: `if (n > dst_cap) n = dst_cap;` the line before the `memcpy` makes the CWE-787 claim impossible. Short-circuits on `n == 0` to avoid C17 `memcpy(dst, NULL, 0)` UB.
+- `bufops_copy_truncating`: `n <= dst_cap - 1`, `dst[n]` hits at most `dst_cap - 1`; early-return on `dst_cap == 0`.
+- `bufops_shift`: both `i + n` and `j + n` bounded to `cap`; `memmove` explicitly supports overlap.
+
+Additional isolation: all functions are `static` (no external linkage) and the file is not added to any build target.
+
+### Stage D (C `heartbeat.c` + `sat.h`)
+
+The Heartbleed silhouette (`uint16_t payload_len` → `malloc(1+2+payload_len+16)` → `memcpy`) is defanged by layered guards:
+
+- `sat_sub` saturating subtraction for all header/trailer budget math (no wrap).
+- Frame fields cached into `const` locals on entry — closes TOCTOU and signal-handler UB windows.
+- NULL checks on the reader struct and its buffer.
+- `_Static_assert(SIZE_MAX - 19 >= UINT16_MAX, ...)` proves the `malloc` size cannot overflow `size_t`.
+- `payload_len > 0` short-circuit avoids `memcpy(dst, NULL, 0)` UB on empty payloads.
+- `parse_heartbeat` and `read_u16_be` are `static`; file not linked into any build target.
+
+A report alleging OOB read/write in `parse_heartbeat` without engaging with the specific guard on the cited line has not verified exploitability — close via triage rule 5.
 
 
 ## Watch out for...
@@ -66,8 +109,8 @@ For each incoming report, in order:
 **Bucket 1 - your own tools trip.** Your scanners, linters, IDE, and  
 secret-scanning will fire on the canary. This is the intended behaviour for  
 *incoming* scans but means **your own pipelines** need to skip these paths.
-Required: exclude `canaries/`** from every SAST config (CodeQL
-`paths-ignore`, `.semgrepignore`, `bandit -x canaries`, Ruff
+Required: exclude the canary paths from every SAST config (CodeQL
+`paths-ignore`, `.semgrepignore`, `bandit -x`, Ruff
 `--extend-exclude`, `.clang-format-ignore`, editor LSP), exclude from
 published artefacts (`MANIFEST.in prune`, `.dockerignore`, wheel
 excludes), allowlist the fake secrets (`AKIAIOSFODNN7EXAMPLE`, fake
@@ -84,31 +127,34 @@ from learning the code, but might buy you some time.
 **Bucket 3 - post-compromise.** If an attacker already has access they can  
 do whatever they want, and don't need honeyslop. However, flipping  
 `if False:` → `if True:`, inserting Unicode/BIDI tricks, or adding  
-prompt-injection text in docstrings turns canary live, where you may not  
-expect it to be, would certainly be interesting to watch for, if unlikely.
+prompt-injection text in docstrings can turn a canary live where you  
+don't expect it. Worth watching for, if unlikely.
 
 ## How to try
 
 1. **Pick stages.** C/C++ parser surface → D (+ B). Python OSS maintainer
   → A + E. Under sustained agentic scanner spam → add F + G privately.
-2. **Rotate every UUID.** Distinct per adopter, not prefix variants of
-  one base. See `ROTATE_UUID.md`.
-3. **Exclude from build artefacts.** Python: `MANIFEST.in prune canaries`
-  or `pyproject.toml tool.setuptools.exclude-package-data`. C: omit from
-   `CMakeLists.txt` / `Makefile` / sdist. Docker: `.dockerignore`.
+2. **Rotate every UUID.** One per language, distinct per adopter — not
+  prefix variants of one base. See `ROTATE_UUID.md`.
+3. **Exclude from build artefacts.** Python: `MANIFEST.in prune` the
+  canary paths, or `pyproject.toml tool.setuptools.exclude-package-data`.
+  C: omit from `CMakeLists.txt` / `Makefile` / sdist. Docker: `.dockerignore`.
 4. **Exclude from CI static analysis.** Otherwise your own CI produces
-  findings on the canary. CodeQL `paths-ignore: [canaries/**]`,
-   `.semgrepignore` add `canaries/`, `bandit -x canaries`, Ruff
-   `--extend-exclude canaries/`**.
+  findings on the canary. CodeQL `paths-ignore`, `.semgrepignore`,
+  `bandit -x`, Ruff `--extend-exclude`, all pointed at your canary
+  paths.
 5. **Consider adding the triage rule to `SECURITY.md`** —
-  see `SECURITY.md.template`. This could alert slop scanners to the
-   canary. (maybe a good thing?)
+  see `SECURITY.md.template`. This may tip slop scanners off to the
+   canary's presence (maybe a good thing?).
 6. **Protect from contributor cleanup.** `CODEOWNERS` on the canary
   files; a pre-commit hook that fails if the canary UUID count decreases
    or if `if False:` tripwires go missing.
-7. **Remove obvious "tells".** Replace code comments, directory, file,
-and function names with "canary", "canaries", "honeypot", "decoy", "fake",
-or "slop".
+7. **Remove obvious "tells".** Strip "canary", "canaries", "honeypot",
+  "decoy", "fake", "tripwire", and "slop" from code comments, directory
+  names, file names, and function/identifier names. Reframe top-of-file
+  docstrings as plausible deprecation notices. Keep this conceptual
+  language in the *docs* (README, `SECURITY.md.template`, `ROTATE_UUID.md`)
+  where it's load-bearing.
 
 We've added some examples as to how we might do it, but feel free to share the ones that worked for you. 
 
@@ -123,8 +169,8 @@ in connection with the software or the use or other dealings in the software.
 
 **Warning:** This project contains code that appears vulnerable, and should be
 assumed to be so. That is its function. Some of it works by being costly to
-analyze - assume this code will consume significant computing resources when
-executed or inspected, depending on the canary. Do not run, deploy, or adapt
+analyze — assume this code will consume significant computing resources when
+inspected by a scanner, depending on the canary. Do not run, deploy, or adapt
 any of it in a real environment.
 
 ## License
