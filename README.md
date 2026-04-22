@@ -110,6 +110,8 @@ expect it to be, would certainly be interesting to watch for, if unlikely.
 and function names with "canary", "canaries", "honeypot", "decoy", "fake",
 or "slop".
 
+We've added some examples as to how we might do it, but feel free to share the ones that worked for you. 
+
 ## DISCLAIMER
 
 This project is provided "as is", without warranty of any kind, express or
